@@ -516,6 +516,8 @@ dependencies = [
 name = "yew-sample-todo"
 version = "0.1.0"
 dependencies = [
+ "serde 1.0.102 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_derive 1.0.102 (registry+https://github.com/rust-lang/crates.io-index)",
  "yew 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
