@@ -1,20 +1,20 @@
 #![recursion_limit = "512"]
 
-use std::fmt::Display;
+mod filter;
 
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
 use strum::IntoEnumIterator;
-use strum_macros::EnumIter;
 use yew::Component;
 use yew::ComponentLink;
 use yew::ShouldRender;
 use yew::Html;
-use yew::Href;
 use yew::events::IKeyboardEvent;
 use yew::format::Json;
 use yew::services::storage::Area;
 use yew::services::storage::StorageService;
+
+use crate::filter::Filter;
 
 const KEY: &'static str = "yew-sample-todo.self";
 
@@ -44,6 +44,46 @@ impl State {
 pub struct Entry {
     text: String,
     completed: bool,
+    editing: bool,
+}
+
+impl Entry {
+    fn view_entry(&self, idx: usize) -> Html<Model> {
+        let mut class = "todo".to_string();
+        if self.editing {
+            class.push_str(" editing");
+        }
+        if self.completed {
+            class.push_str(" completed");
+        }
+        yew::html! {
+            <li class=class>
+                <div class="view">
+                    <input class="toggle" type="checkbox" checked=self.completed onclick=|_| Message::Toggle(idx) />
+                    // <label ondoubleclick=|_| Message::ToggleEdit(idx)>{ &self.text }</label>
+                    <button class="destroy" onclick=|_| Message::Delete(idx) />
+                </div>
+                // { self.view_entry_edit_input(idx) }
+            </li>
+        }
+    }
+
+    // fn view_entry_edit_input(&self, idx: usize) -> Html<Model> {
+    //     if self.editing == true {
+    //         yew::html! {
+    //             <input class="edit"
+    //                    type="text"
+    //                    value=&self.text
+    //                    oninput=|e| Message::UpdateEdit(e.value)
+    //                    onblur=|_| Message::Edit(idx)
+    //                    onkeypress=|e| {
+    //                       if e.key() == "Enter" { Message::Edit(idx) } else { Message::Nope }
+    //                    } />
+    //         }
+    //     } else {
+    //         yew::html! { <input type="hidden" /> }
+    //     }
+    // }
 }
 
 pub enum Message {
@@ -70,41 +110,6 @@ pub enum Message {
 
     // No-op that still causes a view update.
     Noop,
-}
-
-#[derive(Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Hash, EnumIter)]
-pub enum Filter {
-    All,
-    Active,
-    Done,
-}
-
-impl Display for Filter {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = match self {
-            &Self::All => "All",
-            &Self::Active => "Active",
-            &Self::Done => "Done",
-        };
-
-        write!(f, "{}", s)
-    }
-}
-
-impl Default for Filter {
-    fn default() -> Self {
-        Self::All
-    }
-}
-
-impl Into<Href> for Filter {
-    fn into(self) -> Href {
-        match self {
-            Filter::All => "#/".into(),
-            Filter::Active => "#/active".into(),
-            Filter::Done => "#/done".into(),
-        }
-    }
 }
 
 impl Component for Model {
@@ -151,10 +156,15 @@ impl Component for Model {
                         // { self.view_input() }
                     </header>
                     <section class="main">
-                        // <input class="toggle-all" type="checkbox" checked=self.state.is_all_completed() onclick=|_| Msg::ToggleAll />
-                        // <ul class="todo-list">
-                        //     { for self.state.entries.iter().filter(|e| self.state.filter.fit(e)).enumerate().map(view_entry) }
-                        // </ul>
+                        // <input class="toggle-all" type="checkbox" checked=self.state.is_all_completed() onclick=|_| Message::ToggleAll />
+                        <ul class="todo-list">
+                            {
+                                for self.state.entries.iter()
+                                .filter(|e| self.state.filter.passes(e))
+                                .enumerate()
+                                .map(|(i, e)| e.view_entry(i))
+                            }
+                        </ul>
                     </section>
                     <footer class="footer">
                         <span class="todo-count">
