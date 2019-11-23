@@ -4,6 +4,8 @@ use std::fmt::Display;
 
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
 use yew::Component;
 use yew::ComponentLink;
 use yew::ShouldRender;
@@ -32,6 +34,10 @@ impl State {
     fn is_all_completed(&self) -> bool {
         self.entries.iter().all(|e| e.completed)
     }
+
+    fn total_completed(&self) -> usize {
+        self.entries.iter().filter(|e| e.completed).count()
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -46,6 +52,9 @@ pub enum Message {
 
     // Delete an existing todo entry via index.
     Delete(usize),
+
+    // Delete all completed entries.
+    DeleteDone,
 
     // Update an existing todo entry via index.
     Update(usize, String),
@@ -63,7 +72,7 @@ pub enum Message {
     Noop,
 }
 
-#[derive(Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Hash, EnumIter)]
 pub enum Filter {
     All,
     Active,
@@ -124,7 +133,12 @@ impl Component for Model {
         Model { storage, state, }
     }
 
-    fn update(&mut self, _: Self::Message) -> ShouldRender {
+    fn update(&mut self, msg: Self::Message) -> ShouldRender {
+        match msg {
+            Message::SetFilter(fil) => self.state.filter = fil,
+            _ => {},
+        };
+
         true
     }
 
@@ -148,11 +162,11 @@ impl Component for Model {
                             // { " item(s) left" }
                         </span>
                         <ul class="filters">
-                            // { for Filter::iter().map(|flt| self.view_filter(flt)) }
+                            { for Filter::iter().map(|fil| self.view_filter(fil)) }
                         </ul>
-                        // <button class="clear-completed" onclick=|_| Msg::ClearCompleted>
-                        //     { format!("Clear completed ({})", self.state.total_completed()) }
-                        // </button>
+                        <button class="clear-completed" onclick=|_| Message::DeleteDone>
+                            { format!("Clear completed ({})", self.state.total_completed()) }
+                        </button>
                     </footer>
                 </section>
             </div>
@@ -166,7 +180,7 @@ impl Model {
             <li>
                 <a class=if self.state.filter == filter { "selected" } else { "not-selected" }
                    href=filter
-                   onclick=|_| Message::SetFilter(filter.clone())>
+                   onclick=|_| Message::SetFilter(filter)>
                     { filter }
                 </a>
             </li>
